@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f172a">
+  <title>بوابة ولي الأمر - متابعة الطلاب والحجز</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+    :root {
+      --bg-main: #041311;
+      --bg-card: #09221e;
+      --border-card: #133b34;
+      --bg-input: #041311;
+      --border-input: #1d544a;
+      --text-main: #f8fafc;
+      --text-sub: #cbd5e1;
+      --text-muted: #94a3b8;
+    }
+
+    body {
+      font-family: 'Tajawal', sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+    }
+
+    .gold-gradient {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+
+    .card-bg {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-card);
+    }
+
+    .input-style {
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-input);
+      color: var(--text-main);
+    }
+
+    .input-style:focus {
+      border-color: #10b981;
+      outline: none;
+    }
+
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg-main); }
+    ::-webkit-scrollbar-thumb { background: #1d544a; border-radius: 4px; }
+
+    @media print {
+      body * { visibility: hidden; }
+      #printableArea, #printableArea *, #printCenterModal, #printCenterModal * { visibility: visible; }
+      #printableArea, #printCenterModal { position: absolute; left: 0; top: 0; width: 100%; background: white !important; color: black !important; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+  <!-- Toast Notification -->
+  <div id="toastNotification" class="fixed bottom-5 left-5 z-50 hidden px-4 py-3 rounded-xl shadow-2xl text-xs font-bold flex items-center gap-2 transition-all duration-300 no-print"></div>
+
+  <!-- Modal: Booking / Registration Request -->
+  <div id="bookingModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden no-print">
+    <div class="card-bg rounded-2xl max-w-md w-full p-6 space-y-4 border border-slate-700 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-700 pb-3">
+        <h3 class="font-bold text-slate-100 flex items-center gap-2 text-sm">
+          <i class="fa-solid fa-user-plus text-orange-400"></i> حجز وتسجيل طالب جديد بالسنتر
+        </h3>
+        <button onclick="closeBookingModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <form onsubmit="handleBookingSubmit(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block font-bold text-slate-300 mb-1">اسم الطالب ثلاثي *</label>
+          <input type="text" id="bookStudentName" required placeholder="مثال: أحمد محمد علي" class="w-full p-2.5 rounded-xl input-style text-xs">
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-300 mb-1">الصف الدراسي *</label>
+          <select id="bookStudentGrade" required class="w-full p-2.5 rounded-xl input-style text-xs">
+            <option value="1_prep">الأول الإعدادي</option>
+            <option value="2_prep">الثاني الإعدادي</option>
+            <option value="3_prep">الثالث الإعدادي</option>
+            <option value="1_sec">الأول الثانوي</option>
+            <option value="2_sec">الثاني الثانوي</option>
+            <option value="bac">صف البكالوريا</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-bold text-slate-300 mb-1">رقم ولي الأمر *</label>
+            <input type="tel" id="bookParentPhone" required placeholder="01XXXXXXXXX" class="w-full p-2.5 rounded-xl input-style text-xs">
+          </div>
+          <div>
+            <label class="block font-bold text-slate-300 mb-1">رقم هاتف الطالب *</label>
+            <input type="tel" id="bookStudentPhone" required placeholder="01XXXXXXXXX" class="w-full p-2.5 rounded-xl input-style text-xs">
+          </div>
+        </div>
+
+        <div class="pt-2 flex gap-2">
+          <button type="button" onclick="closeBookingModal()" class="flex-1 py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl hover:bg-slate-700">إلغاء</button>
+          <button type="submit" id="bookSubmitBtn" class="flex-1 py-2.5 gold-gradient text-slate-900 font-extrabold rounded-xl hover:opacity-90 shadow">إرسال طلب الحجز</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Settings & Options Modal -->
+  <div id="parentSettingsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden no-print">
+    <div class="card-bg rounded-2xl max-w-md w-full p-6 space-y-4 border border-slate-700 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-700 pb-3">
+        <h3 class="font-bold text-slate-100 flex items-center gap-2 text-sm">
+          <i class="fa-solid fa-sliders text-orange-400"></i> الإعدادات والخيارات الإضافية
+        </h3>
+        <button onclick="closeParentSettingsModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <div class="space-y-2.5 text-xs">
+        <button onclick="printStudentReport()" class="w-full flex items-center justify-between p-3.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-slate-200 font-bold transition">
+          <span class="flex items-center gap-3">
+            <i class="fa-solid fa-file-pdf text-emerald-400 text-base"></i>
+            <span>تحميل / طباعة تقرير الطالب الشامل (PDF)</span>
+          </span>
+          <i class="fa-solid fa-chevron-left text-slate-500"></i>
+        </button>
+
+        <button onclick="downloadStudentDataFile()" class="w-full flex items-center justify-between p-3.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-slate-200 font-bold transition">
+          <span class="flex items-center gap-3">
+            <i class="fa-solid fa-download text-sky-400 text-base"></i>
+            <span>تنزيل نسخة بيانات الطالب على الهاتف</span>
+          </span>
+          <i class="fa-solid fa-chevron-left text-slate-500"></i>
+        </button>
+
+        <a id="settingsWhatsappBtn" href="https://wa.me/201013587867" target="_blank" class="w-full flex items-center justify-between p-3.5 rounded-xl bg-emerald-950/50 hover:bg-emerald-900/60 border border-emerald-800/60 text-emerald-300 font-bold transition">
+          <span class="flex items-center gap-3">
+            <i class="fa-brands fa-whatsapp text-emerald-400 text-base"></i>
+            <span>تواصل مباشر مع إدارة السنتر</span>
+          </span>
+          <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+        </a>
+
+        <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 space-y-1.5 text-[11px] text-slate-400">
+          <div class="flex justify-between">
+            <span>حالة الربط السحابي:</span>
+            <span class="text-emerald-400 font-bold">متصل ومزامن لحظياً ●</span>
+          </div>
+          <div class="flex justify-between">
+            <span>إدارة المنصة:</span>
+            <span id="settingsCenterName" class="text-orange-400 font-bold">MR</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-700 pt-3">
+        <button onclick="handleParentLogout()" class="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-red-950/70 hover:bg-red-900/90 border border-red-800/60 text-red-300 text-xs font-bold transition">
+          <i class="fa-solid fa-right-from-bracket"></i>
+          <span>تسجيل الخروج من الحساب</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Wrapper -->
+  <div id="app" class="flex-grow flex flex-col">
+
+    <!-- Parent Login Screen -->
+    <div id="parentLoginScreen" class="flex-grow flex items-center justify-center p-4">
+      <div class="card-bg p-7 sm:p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-700/80 relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-2 h-full gold-gradient"></div>
+
+        <div class="text-center mb-6">
+          <div class="w-16 h-16 gold-gradient rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg transform rotate-3">
+            <i class="fa-solid fa-user-shield text-2xl text-slate-900 -rotate-3"></i>
+          </div>
+          <h1 id="loginCenterTitle" class="text-xl sm:text-2xl font-extrabold text-white mb-1">بوابة ولي الأمر - منصة MR</h1>
+          <p class="text-slate-400 text-xs">تابع حضور ابنك ودرجات التسميع والمصروفات لحظة بلحظة</p>
+        </div>
+
+        <form id="parentLoginForm" onsubmit="handleParentLogin(event)" class="space-y-3.5">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">اسم الطالب (كما هو مسجل بالسنتر) *</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400"><i class="fa-solid fa-user-graduate"></i></span>
+              <input type="text" id="inputStudentName" required placeholder="أدخل اسم الطالب ثلاثي" class="w-full pr-10 pl-3 py-2.5 rounded-xl input-style text-xs sm:text-sm">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">كود الطالب *</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 right-0 flex items-center pr-3 text-orange-400"><i class="fa-solid fa-hashtag"></i></span>
+              <input type="text" id="inputStudentCode" required placeholder="مثال: 15" class="w-full pr-10 pl-3 py-2.5 rounded-xl input-style text-xs sm:text-sm font-bold text-orange-400">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">رقم هاتف ولي الأمر المسجل *</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400"><i class="fa-solid fa-phone"></i></span>
+              <input type="tel" id="inputParentPhone" required placeholder="01XXXXXXXXX" class="w-full pr-10 pl-3 py-2.5 rounded-xl input-style text-xs sm:text-sm">
+            </div>
+          </div>
+
+          <div id="loginErrorBox" class="hidden text-red-300 text-xs text-center bg-red-950/70 p-2.5 rounded-xl border border-red-800/80 leading-relaxed"></div>
+
+          <button type="submit" id="loginSubmitBtn" class="w-full py-3 rounded-xl gold-gradient font-extrabold text-slate-900 hover:opacity-90 transition shadow-lg flex items-center justify-center gap-2 text-xs sm:text-sm">
+            <i class="fa-solid fa-right-to-bracket"></i>
+            <span>عرض ملف الطالب</span>
+          </button>
+        </form>
+
+        <div class="mt-4 pt-4 border-t border-slate-800 text-center">
+          <p class="text-[11px] text-slate-400 mb-2">ليس لديك طالب مسجل وترغب في الحجز بالسنتر؟</p>
+          <p class="text-[11px] text-slate-400 mb-2">سيتم الرد علي واتساب ولي الامر بعد الموافقه علي طلب حجز الطالب</p>
+          <button onclick="openBookingModal()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-orange-400 border border-slate-700 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition shadow">
+            <i class="fa-solid fa-user-plus"></i>
+            <span>حجز وتسجيل طالب جديد بالسنتر</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Parent Dashboard Screen -->
+    <div id="parentDashboardScreen" class="hidden flex-grow flex flex-col">
+      <header class="card-bg border-b border-slate-800 sticky top-0 z-30 no-print">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 gold-gradient rounded-xl flex items-center justify-center text-slate-900 font-extrabold shadow">
+              <i class="fa-solid fa-graduation-cap text-lg"></i>
+            </div>
+            <div>
+              <h2 id="dashCenterBrand" class="font-extrabold text-base text-white leading-tight">منصة MR</h2>
+              <span class="text-[11px] text-emerald-400 flex items-center gap-1">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span> تحديث تلقائي مباشر
+              </span>
+            </div>
+          </div>
+
+          <button onclick="openParentSettingsModal()" class="bg-slate-800 hover:bg-slate-700 text-orange-400 border border-slate-700 px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow">
+            <i class="fa-solid fa-gear text-sm"></i>
+            <span>الإعدادات والخيارات</span>
+          </button>
+        </div>
+      </header>
+
+      <main id="printableStudentReport" class="max-w-5xl mx-auto px-4 sm:px-6 py-6 flex-grow w-full space-y-6">
+        <div class="card-bg print-card p-5 sm:p-6 rounded-2xl border-r-4 border-orange-500 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="space-y-1.5">
+            <div class="flex flex-wrap items-center gap-2">
+              <span id="viewStudentCode" class="bg-orange-500/15 text-orange-400 border border-orange-500/40 px-2.5 py-0.5 rounded-lg text-xs font-extrabold">كود: 1</span>
+              <span id="viewStudentGrade" class="bg-slate-800 text-slate-300 border border-slate-700 px-2.5 py-0.5 rounded-lg text-xs font-bold">الصف الدراسي</span>
+            </div>
+            <h1 id="viewStudentName" class="text-xl sm:text-2xl font-extrabold text-white print-text-dark">اسم الطالب</h1>
+            <p class="text-xs text-slate-400 flex items-center gap-2">
+              <i class="fa-solid fa-clock text-orange-400"></i>
+              <span>المجموعة: <strong id="viewStudentGroup" class="text-slate-200 print-text-dark">غير محدد</strong></span>
+            </p>
+          </div>
+
+          <div class="bg-slate-900/80 print-card p-3.5 rounded-xl border border-slate-800 text-xs space-y-1.5 min-w-[200px]">
+            <div class="flex justify-between">
+              <span class="text-slate-400">هاتف ولي الأمر:</span>
+              <strong id="viewParentPhone" class="text-white print-text-dark font-mono">01000000000</strong>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">الاشتراك الشهري:</span>
+              <strong id="viewStudentFee" class="text-orange-400 font-bold">150 ج.م</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="card-bg print-card p-4 rounded-2xl text-center space-y-1">
+            <span class="text-[11px] text-slate-400 block">نسبة الالتزام والحضور</span>
+            <span id="statAttendanceRatio" class="text-xl font-extrabold text-orange-400">100%</span>
+          </div>
+          <div class="card-bg print-card p-4 rounded-2xl text-center space-y-1">
+            <span class="text-[11px] text-slate-400 block">أيام الحضور</span>
+            <span id="statPresentDays" class="text-xl font-extrabold text-emerald-400">0</span>
+          </div>
+          <div class="card-bg print-card p-4 rounded-2xl text-center space-y-1">
+            <span class="text-[11px] text-slate-400 block">أيام الغياب</span>
+            <span id="statAbsentDays" class="text-xl font-extrabold text-red-400">0</span>
+          </div>
+          <div class="card-bg print-card p-4 rounded-2xl text-center space-y-1">
+            <span class="text-[11px] text-slate-400 block">الشهور المسددة</span>
+            <span id="statPaidMonths" class="text-xl font-extrabold text-sky-400">0 / 12</span>
+          </div>
+        </div>
+
+        <!-- صندوق ملاحظات المعلم -->
+        <div class="card-bg print-card p-5 rounded-2xl space-y-3 border-r-4 border-amber-500">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+            <h3 class="font-bold text-sm sm:text-base text-white print-text-dark flex items-center gap-2">
+              <i class="fa-solid fa-comment-dots text-amber-400"></i>
+              <span>ملاحظات وتقييمات المعلم</span>
+            </h3>
+            <span class="text-[11px] text-slate-400">تحديث مباشر</span>
+          </div>
+          <div id="teacherNotesContainer" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
+        </div>
+
+        <div class="card-bg print-card p-5 rounded-2xl space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+            <h3 class="font-bold text-sm sm:text-base text-white print-text-dark flex items-center gap-2">
+              <i class="fa-solid fa-clipboard-check text-indigo-400"></i>
+              <span>سجل الحضور والغياب ودرجات التسميع</span>
+            </h3>
+            <select id="filterAttendanceMonth" onchange="renderStudentDashboard()" class="input-style text-xs p-2 rounded-xl no-print">
+              <option value="all">كل الشهور</option>
+              <option value="01">شهر 1 (يناير)</option>
+              <option value="02">شهر 2 (فبراير)</option>
+              <option value="03">شهر 3 (مارس)</option>
+              <option value="04">شهر 4 (أبريل)</option>
+              <option value="05">شهر 5 (مايو)</option>
+              <option value="06">شهر 6 (يونيو)</option>
+              <option value="07">شهر 7 (يوليو)</option>
+              <option value="08">شهر 8 (أغسطس)</option>
+              <option value="09">شهر 9 (سبتمبر)</option>
+              <option value="10">شهر 10 (أكتوبر)</option>
+              <option value="11">شهر 11 (نوفمبر)</option>
+              <option value="12">شهر 12 (ديسمبر)</option>
+            </select>
+          </div>
+
+          <div id="attendanceRecordsContainer" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+        </div>
+
+        <div class="card-bg print-card p-5 rounded-2xl space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 class="font-bold text-sm sm:text-base text-white print-text-dark flex items-center gap-2">
+              <i class="fa-solid fa-money-check-dollar text-emerald-400"></i>
+              <span>حالة سداد المصروفات الشهرية</span>
+            </h3>
+            <span class="text-[11px] text-slate-400">محدث تلقائياً من إدارة السنتر</span>
+          </div>
+
+          <div id="paymentsGridContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <footer class="py-4 border-t border-slate-800/80 text-center text-xs text-slate-400 tracking-wider no-print">
+    بوابة متابعة أولياء الأمور | Powered by Omar Hadwa 2
+  </footer>
+
+  <script>
+    const SUPABASE_URL = 'https://yeuseharatajebiutusw.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_VsaZDOIPH9VH1ImCF7I2PA_mtbvbGDc';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let currentStudent = null;
+    let centerName = 'MR';
+    let failedAttempts = 0;
+    let lockoutUntil = 0;
+
+    const gradeNames = {
+      '1_prep': 'الأول الإعدادي',
+      '2_prep': 'الثاني الإعدادي',
+      '3_prep': 'الثالث الإعدادي',
+      '1_sec': 'الأول الثانوي',
+      '2_sec': 'الثاني الثانوي',
+      'bac': 'صف البكالوريا'
+    };
+
+    const monthNames = {
+      '1': 'يناير', '2': 'فبراير', '3': 'مارس', '4': 'أبريل',
+      '5': 'مايو', '6': 'يونيو', '7': 'يوليو', '8': 'أغسطس',
+      '9': 'سبتمبر', '10': 'أكتوبر', '11': 'نوفمبر', '12': 'ديسمبر'
+    };
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      await fetchCenterSettings();
+      setupRealtimeSync();
+      restoreSavedSession();
+    });
+
+    async function fetchCenterSettings() {
+      try {
+        const { data, error } = await supabaseClient
+          .from('teacher_settings')
+          .select('name')
+          .eq('id', 'main_teacher')
+          .single();
+
+        if (!error && data && data.name) {
+          centerName = data.name;
+        }
+      } catch (e) {}
+      applyCenterBranding();
+    }
+
+    function applyCenterBranding() {
+      document.title = `بوابة ولي الأمر - منصة ${centerName}`;
+      document.getElementById('loginCenterTitle').textContent = `بوابة ولي الأمر - منصة ${centerName}`;
+      document.getElementById('dashCenterBrand').textContent = `منصة ${centerName}`;
+      document.getElementById('settingsCenterName').textContent = `منصة ${centerName}`;
+    }
+
+    function setupRealtimeSync() {
+      supabaseClient
+        .channel('parent-center-settings-channel')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'teacher_settings' }, async () => {
+          await fetchCenterSettings();
+        })
+        .subscribe();
+
+      supabaseClient
+        .channel('parent-student-live-channel')
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'students' }, (payload) => {
+          if (currentStudent && payload.new && payload.new.id === currentStudent.id) {
+            currentStudent = payload.new;
+            sessionStorage.setItem('mr_parent_student_session', JSON.stringify(currentStudent));
+            renderStudentDashboard();
+            showToast('تم تحديث بيانات الطالب من السنتر الآن ✓');
+          }
+        })
+        .subscribe();
+    }
+
+    function restoreSavedSession() {
+      const saved = sessionStorage.getItem('mr_parent_student_session');
+      if (saved) {
+        try {
+          currentStudent = JSON.parse(saved);
+          refreshCurrentStudentFromCloud(currentStudent.id);
+          showDashboard();
+        } catch (e) {
+          sessionStorage.removeItem('mr_parent_student_session');
+        }
+      }
+    }
+
+    async function refreshCurrentStudentFromCloud(studentId) {
+      try {
+        const { data, error } = await supabaseClient
+          .from('students')
+          .select('*')
+          .eq('id', studentId)
+          .single();
+
+        if (!error && data) {
+          currentStudent = data;
+          sessionStorage.setItem('mr_parent_student_session', JSON.stringify(currentStudent));
+          renderStudentDashboard();
+        }
+      } catch (e) {}
+    }
+
+    async function openBookingModal() {
+      try {
+        const { data } = await supabaseClient
+          .from('teacher_settings')
+          .select('is_booking_open')
+          .eq('id', 'main_teacher')
+          .single();
+          
+        if (data && data.is_booking_open === false) {
+          showToast('اعتذار: تم إغلاق باب الحجز مؤقتاً بواسطة إدارة السنتر.', 'error');
+          return;
+        }
+      } catch(e) {}
+      
+      document.getElementById('bookingModal').classList.remove('hidden');
+    }
+    function closeBookingModal() { document.getElementById('bookingModal').classList.add('hidden'); }
+
+    async function handleBookingSubmit(e) {
+      e.preventDefault();
+      const submitBtn = document.getElementById('bookSubmitBtn');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'جاري إرسال الطلب...';
+
+      const bookingData = {
+        id: 'req_' + Date.now(),
+        name: document.getElementById('bookStudentName').value.trim(),
+        grade: document.getElementById('bookStudentGrade').value,
+        group_name: 'لم تحدد بعد',
+        parent_phone: document.getElementById('bookParentPhone').value.trim(),
+        student_phone: document.getElementById('bookStudentPhone').value.trim(),
+        fee: 150,
+        status: 'pending',
+        created_at: new Date().toISOString()
+      };
+
+      try {
+        const { error } = await supabaseClient
+          .from('student_requests')
+          .insert([bookingData]);
+
+        if (error) {
+          showToast('تعذر إرسال طلب الحجز، تأكد من الاتصال بالسيرفر', 'error');
+        } else {
+          showToast('تم إرسال طلب الحجز لإدارة السنتر بنجاح! سيتم التواصل معك قريباً ✓');
+          closeBookingModal();
+          e.target.reset();
+        }
+      } catch (err) {
+        showToast('حدث خطأ غير متوقع', 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'إرسال طلب الحجز';
+      }
+    }
+
+    async function handleParentLogin(e) {
+      e.preventDefault();
+
+      if (Date.now() < lockoutUntil) {
+        const remainingSec = Math.ceil((lockoutUntil - Date.now()) / 1000);
+        showLoginError(`تم إيقاف المحاولات مؤقتاً. يرجى الانتظار ${remainingSec} ثانية.`);
+        return;
+      }
+
+      const nameInput = document.getElementById('inputStudentName').value.trim().toLowerCase();
+      const codeInput = document.getElementById('inputStudentCode').value.trim();
+      const phoneInput = document.getElementById('inputParentPhone').value.replace(/\D/g, '');
+
+      const submitBtn = document.getElementById('loginSubmitBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>جاري الفحص...</span>';
+
+      try {
+        const { data, error } = await supabaseClient
+          .from('students')
+          .select('*')
+          .eq('code', codeInput);
+
+        if (error || !data || data.length === 0) {
+          registerFailedAttempt('بيانات الدخول غير صحيحة. تأكد من كود الطالب واسمه ورقم ولي الأمر.');
+          return;
+        }
+
+        const matchedStudent = data.find(st => {
+          const dbName = (st.name || '').trim().toLowerCase();
+          const dbPhone = (st.parent_phone || '').replace(/\D/g, '');
+          const nameMatches = dbName.includes(nameInput) || nameInput.includes(dbName);
+          const phoneMatches = dbPhone === phoneInput || dbPhone.endsWith(phoneInput.slice(-10));
+          return nameMatches && phoneMatches && phoneInput.length >= 10;
+        });
+
+        if (!matchedStudent) {
+          registerFailedAttempt('الاسم أو رقم هاتف ولي الأمر غير مطابق للكود المدخل!');
+          return;
+        }
+
+        failedAttempts = 0;
+        currentStudent = matchedStudent;
+        sessionStorage.setItem('mr_parent_student_session', JSON.stringify(currentStudent));
+        document.getElementById('loginErrorBox').classList.add('hidden');
+        showDashboard();
+
+      } catch (err) {
+        showLoginError('حدث خطأ في الاتصال بالسيرفر.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> <span>عرض ملف الطالب</span>';
+      }
+    }
+
+    function registerFailedAttempt(msg) {
+      failedAttempts++;
+      if (failedAttempts >= 5) {
+        lockoutUntil = Date.now() + 60000;
+        failedAttempts = 0;
+        showLoginError('تم إدخال البيانات خطأ 5 مرات. تم قفل الدخول لمدة دقيقة.');
+      } else {
+        showLoginError(msg);
+      }
+    }
+
+    function showLoginError(message) {
+      const box = document.getElementById('loginErrorBox');
+      box.textContent = message;
+      box.classList.remove('hidden');
+    }
+
+    function showDashboard() {
+      document.getElementById('parentLoginScreen').classList.add('hidden');
+      document.getElementById('parentDashboardScreen').classList.remove('hidden');
+      renderStudentDashboard();
+    }
+
+    function handleParentLogout() {
+      closeParentSettingsModal();
+      currentStudent = null;
+      sessionStorage.removeItem('mr_parent_student_session');
+      document.getElementById('parentDashboardScreen').classList.add('hidden');
+      document.getElementById('parentLoginScreen').classList.remove('hidden');
+      document.getElementById('parentLoginForm').reset();
+    }
+
+    function renderStudentDashboard() {
+      if (!currentStudent) return;
+
+      document.getElementById('viewStudentCode').textContent = `كود: ${currentStudent.code || '1'}`;
+      document.getElementById('viewStudentGrade').textContent = gradeNames[currentStudent.grade] || currentStudent.grade;
+      document.getElementById('viewStudentName').textContent = currentStudent.name;
+      document.getElementById('viewStudentGroup').textContent = currentStudent.group_name || 'مجموعة عامة';
+      document.getElementById('viewParentPhone').textContent = currentStudent.parent_phone;
+      document.getElementById('viewStudentFee').textContent = `${currentStudent.fee || 150} ج.م`;
+
+      const attendance = currentStudent.attendance || [];
+      const presentCount = attendance.filter(a => a.status === 'present').length;
+      const absentCount = attendance.filter(a => a.status === 'absent').length;
+      const ratio = attendance.length > 0 ? Math.round((presentCount / attendance.length) * 100) : 100;
+
+      const payments = currentStudent.payments || {};
+      let paidMonthsCount = 0;
+      for (let m = 1; m <= 12; m++) {
+        if (payments[m] && payments[m].is_paid) paidMonthsCount++;
+      }
+
+      document.getElementById('statAttendanceRatio').textContent = `${ratio}%`;
+      document.getElementById('statPresentDays').textContent = presentCount;
+      document.getElementById('statAbsentDays').textContent = absentCount;
+      document.getElementById('statPaidMonths').textContent = `${paidMonthsCount} / 12`;
+
+      const selectedMonth = document.getElementById('filterAttendanceMonth').value;
+      const attContainer = document.getElementById('attendanceRecordsContainer');
+      attContainer.innerHTML = '';
+
+      const filteredAtt = attendance.filter(a => {
+        if (selectedMonth === 'all') return true;
+        return a.date && a.date.split('-')[1] === selectedMonth;
+      });
+
+      if (filteredAtt.length === 0) {
+        attContainer.innerHTML = '<p class="text-xs text-slate-500 italic text-center py-6 bg-slate-900/40 rounded-xl">لا توجد سجلات حضور مسجلة في هذه الفترة.</p>';
+      } else {
+        filteredAtt.slice().reverse().forEach(item => {
+          const isPresent = item.status === 'present';
+          const row = document.createElement('div');
+          row.className = 'flex items-center justify-between bg-slate-900/70 print-card px-4 py-3 rounded-xl border border-slate-800 text-xs';
+          row.innerHTML = `
+            <div class="flex items-center gap-3">
+              <span class="w-2.5 h-2.5 rounded-full ${isPresent ? 'bg-emerald-500' : 'bg-red-500'}"></span>
+              <span class="font-bold ${isPresent ? 'text-emerald-400' : 'text-red-400'}">${isPresent ? 'حاضر ✓' : 'غائب ✗'}</span>
+              <span class="text-slate-400 font-mono">${item.date}</span>
+            </div>
+            <div>
+              ${item.quiz
+                ? `<span class="bg-indigo-950 text-indigo-300 border border-indigo-800/60 px-2.5 py-1 rounded-lg font-bold">درجة التسميع: ${item.quiz}</span>`
+                : '<span class="text-slate-500 text-[11px]">بدون تسميع</span>'}
+            </div>
+          `;
+          attContainer.appendChild(row);
+        });
+      }
+
+      const payContainer = document.getElementById('paymentsGridContainer');
+      payContainer.innerHTML = '';
+
+      for (let m = 1; m <= 12; m++) {
+        const payObj = payments[m];
+        const isPaid = payObj && payObj.is_paid;
+        const amount = isPaid ? (payObj.amount || currentStudent.fee || 150) : (currentStudent.fee || 150);
+
+        const card = document.createElement('div');
+        card.className = `p-3.5 rounded-xl border text-center flex flex-col items-center justify-center space-y-1 transition ${
+          isPaid ? 'bg-emerald-950/50 border-emerald-600/60 text-emerald-300' : 'bg-slate-900/60 border-slate-800 text-slate-400'
+        }`;
+        card.innerHTML = `
+          <span class="text-xs font-extrabold text-white print-text-dark">شهر ${m} (${monthNames[m]})</span>
+          <span class="text-[11px] font-bold ${isPaid ? 'text-emerald-400' : 'text-orange-400'}">${isPaid ? `تم السداد (${amount} ج.م) ✅` : 'غير مسدد ⚠️'}</span>
+        `;
+        payContainer.appendChild(card);
+      }
+
+      const notesContainer = document.getElementById('teacherNotesContainer');
+      if (notesContainer) {
+        const notes = currentStudent.notes || [];
+        notesContainer.innerHTML = '';
+        if (notes.length === 0) {
+          notesContainer.innerHTML = '<p class="text-xs text-slate-500 italic text-center py-3 bg-slate-900/40 rounded-xl">لا توجد ملاحظات مسجلة من المعلم حتى الآن.</p>';
+        } else {
+          notes.slice().reverse().forEach(note => {
+            const div = document.createElement('div');
+            div.className = 'bg-slate-900/70 print-card p-3.5 rounded-xl border border-slate-800 space-y-1 text-xs';
+            div.innerHTML = `
+              <div class="flex items-center justify-between text-[11px] text-amber-400 font-bold">
+                <span><i class="fa-solid fa-user-tie ml-1"></i> رسالة من المعلم</span>
+                <span class="font-mono text-slate-400">${note.date}</span>
+              </div>
+              <p class="text-slate-200 print-text-dark leading-relaxed">${note.text}</p>
+            `;
+            notesContainer.appendChild(div);
+          });
+        }
+      }
+    }
+
+    function openParentSettingsModal() { document.getElementById('parentSettingsModal').classList.remove('hidden'); }
+    function closeParentSettingsModal() { document.getElementById('parentSettingsModal').classList.add('hidden'); }
+    function printStudentReport() { closeParentSettingsModal(); setTimeout(() => { window.print(); }, 200); }
+
+    function downloadStudentDataFile() {
+      if (!currentStudent) return;
+      try {
+        const exportObj = {
+          center: centerName, exported_at: new Date().toISOString(),
+          student_code: currentStudent.code, student_name: currentStudent.name,
+          grade: gradeNames[currentStudent.grade], group: currentStudent.group_name,
+          attendance_records: currentStudent.attendance || [], payments_records: currentStudent.payments || {},
+          teacher_notes: currentStudent.notes || []
+        };
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj, null, 2));
+        const a = document.createElement('a');
+        a.setAttribute("href", dataStr); a.setAttribute("download", `تقرير_${currentStudent.name}_كود_${currentStudent.code}.json`);
+        document.body.appendChild(a); a.click(); a.remove();
+        closeParentSettingsModal(); showToast('تم تنزيل ملف بيانات الطالب بنجاح ✓');
+      } catch (e) { showToast('تعذر تنزيل الملف', 'error'); }
+    }
+
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toastNotification');
+      toast.textContent = message;
+      toast.className = `fixed bottom-5 left-5 z-50 px-4 py-3 rounded-xl shadow-2xl text-xs font-bold flex items-center gap-2 transition-all duration-300 no-print ${
+        type === 'error' ? 'bg-orange-900 text-orange-100 border border-orange-700' : 'bg-emerald-900 text-emerald-100 border border-emerald-700'
+      }`;
+      toast.classList.remove('hidden');
+      setTimeout(() => { toast.classList.add('hidden'); }, 3500);
+    }
+  </script>
+</body>
+</html>
