@@ -9,14 +9,16 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-  <style>
+<style>
     :root {
-      --bg-main: #090d16;
-      --bg-card: #131b2e;
-      --border-card: #243049;
-      --bg-input: #090d16;
-      --border-input: #334155;
+      --bg-main: #041311;
+      --bg-card: #09221e;
+      --border-card: #133b34;
+      --bg-input: #041311;
+      --border-input: #1d544a;
       --text-main: #f8fafc;
+      --text-sub: #cbd5e1;
+      --text-muted: #94a3b8;
     }
 
     body {
@@ -26,7 +28,7 @@
     }
 
     .gold-gradient {
-      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     }
 
     .card-bg {
@@ -41,24 +43,19 @@
     }
 
     .input-style:focus {
-      border-color: #f59e0b;
+      border-color: #10b981;
       outline: none;
     }
 
-    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar { width: 8px; }
     ::-webkit-scrollbar-track { background: var(--bg-main); }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb { background: #1d544a; border-radius: 4px; }
 
     @media print {
       body * { visibility: hidden; }
-      #printableStudentReport, #printableStudentReport * { visibility: visible; }
-      #printableStudentReport {
-        position: absolute; left: 0; top: 0; width: 100%;
-        background: white !important; color: black !important; border: none !important;
-      }
+      #printableArea, #printableArea *, #printCenterModal, #printCenterModal * { visibility: visible; }
+      #printableArea, #printCenterModal { position: absolute; left: 0; top: 0; width: 100%; background: white !important; color: black !important; }
       .no-print { display: none !important; }
-      .print-card { background: #f8fafc !important; border: 1px solid #cbd5e1 !important; color: #0f172a !important; }
-      .print-text-dark { color: #0f172a !important; }
     }
   </style>
 </head>
